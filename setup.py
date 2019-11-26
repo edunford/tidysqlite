@@ -8,11 +8,10 @@ setup(
   author = 'Eric Dunford',
   author_email = 'ethomasdunford@gmail.com',
   url = 'https://github.com/edunford/tidysqlite',
-  download_url = 'https://github.com/joelbarmettlerUZH/Scrapeasy/archive/pypi-0_1_3.tar.gz',
+  download_url = 'https://github.com/edunford/tidysqlite/archive/0.0.1.tar.gz',
   keywords = ['sql', 'tidy', 'data','wrangling'],
   install_requires=[
           'pandas',
-          'sqlite3',
       ],
   classifiers=[  # Optional
     # How mature is this project? Common values are
