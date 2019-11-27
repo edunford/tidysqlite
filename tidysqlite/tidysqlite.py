@@ -15,9 +15,9 @@ class tidysqlite:
     '''
     Method for easy manipulation of a SQLite database using sqlite3.
     '''
-    def __init__(self,db_file=None):
-        self.db_loc = db_file
-        self.conn = conn=sqlite3.connect(os.path.expanduser(self.db_loc))
+    def __init__(self):
+        self.db_loc = ''
+        self.conn = None
         self.tables = None
         self.target_table = None
         self.fields = None
@@ -26,10 +26,20 @@ class tidysqlite:
         self.arrange_statement = ""
         self.prior_query = None
 
+    def connect(self,db_file=None):
+        self.db_loc = db_file
+        self.conn = conn=sqlite3.connect(os.path.expanduser(self.db_loc))
+        self.clear()
+
+    def is_connected(self):
+        if self.conn is None:
+            raise ValueError("No database connection located.")
+
     def gather_tables(self):
         '''
         Gather all available tables in the SQL database.
         '''
+        self.is_connected()
         if self.tables is None:
             cursor = self.conn.cursor()
             tables = cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
@@ -58,14 +68,14 @@ class tidysqlite:
         '''
         Gather all available fields
         '''
+        self.is_connected()
         self.fields = pd.read_sql(f"SELECT * FROM '{self.target_table}' LIMIT 1",self.conn).columns.values.tolist()
 
     def list_fields(self,print_span = 7):
         '''
         List all fields within a specific table
         '''
-        if self.fields is None:
-            self.gather_fields()
+        self.gather_fields()
         cnt = 0
         print(f"Available fields in table '{self.target_table}'")
         for i in self.fields:
@@ -78,6 +88,7 @@ class tidysqlite:
         '''
         Helper method to determine if the data table is queued.
         '''
+        self.is_connected()
         if self.tables is None:
             self.gather_tables()
         if self.target_table is None:
@@ -253,6 +264,18 @@ class tidysqlite:
         self.prior_query = pd.read_sql(query,self.conn)
         return self.prior_query
 
+    def copy_to(self):
+        '''
+        Copy a data frame to the SQLite DB
+        '''
+        pass
+
+    def delete_table(self):
+        '''
+        Delete a table from the connected SQLite DB
+        '''
+        pass
+
     # method attributes
     def __str__(self):
         self.gather_tables()
@@ -270,30 +293,3 @@ class tidysqlite:
             {self.arrange_statement}
         """.strip()
         return msg
-
-# %% Test
-
-# db = tidysqlite(db_file="~/Dropbox/Dataverse/conflict_database.sqlite")
-# # db.list_tables()
-# db.table("gtd-1970-2018")
-# # db.list_fields()
-# db.select("country_txt,eventid:iday,addnotes")
-# db.rename("country = country_txt, year = iyear")
-# # db.filter("imonth == 7 and iday==2 and iyear == 2018")
-# # db.arrange("country_txt")
-# # db.clear()
-# db.head()
-# print(db)
-
-
-# %%
-
-# con = sqlite3.connect(os.path.expanduser("~/Dropbox/Dataverse/conflict_database.sqlite"))
-# pd.read_sql("""SELECT
-#             year,
-#             conflict_name,
-#             deaths_a as new
-#             FROM ucdp_ged_v17_1
-#             where year > 2010 and deaths_a > 2
-#             LIMIT 5
-#             """,con)
