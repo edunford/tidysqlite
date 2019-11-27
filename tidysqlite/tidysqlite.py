@@ -5,7 +5,7 @@ Motivation:
     Current methods to call in and explore a SQLite database are cumbersome, and unintuitive.
     For example, trying to list all the available tables in a SQLite database is not straightforward.
     The module aims to generate a handy wrapper for most main query function using R's dplyr
-    syntax. In essence, tidysqlite aims to function like dbplyr. 
+    syntax. In essence, tidysqlite aims to function like dbplyr.
 '''
 import pandas as pd
 import sqlite3
@@ -15,13 +15,15 @@ class tidysqlite:
     '''
     Method for easy manipulation of a SQLite database using sqlite3.
     '''
-    def __init__(self,conn=None):
-        self.conn = conn
+    def __init__(self,db_file=None):
+        self.db_loc = db_file
+        self.conn = conn=sqlite3.connect(os.path.expanduser(self.db_loc))
         self.tables = None
         self.target_table = None
-        self.features = None
-        self.selected_features = "*"
-        self.filter_conditions = None
+        self.fields = None
+        self.selected_fields = "*"
+        self.filter_statement = ""
+        self.arrange_statement = ""
         self.prior_query = None
 
     def gather_tables(self):
@@ -41,9 +43,9 @@ class tidysqlite:
         for i in self.tables:
             print(i)
 
-    def queue_table(self,table_name=""):
+    def table(self,table_name=""):
         '''
-        Flag a specific table for downstream operations.
+        Target a specific table for query.
         '''
         if self.tables is  None:
             self.gather_tables()
@@ -52,38 +54,36 @@ class tidysqlite:
         else:
             print(f"{table_name} not in available tables.")
 
-    def gather_features(self):
+    def gather_fields(self):
         '''
-        Gather all available features
+        Gather all available fields
         '''
-        self.features = pd.read_sql(f"SELECT * FROM '{self.target_table}' LIMIT 1",self.conn).columns.values.tolist()
+        self.fields = pd.read_sql(f"SELECT * FROM '{self.target_table}' LIMIT 1",self.conn).columns.values.tolist()
 
-    def list_features(self,print_span = 7):
+    def list_fields(self,print_span = 7):
         '''
-        List all features within a specific table
+        List all fields within a specific table
         '''
-        if self.features is None:
-            self.gather_features()
+        if self.fields is None:
+            self.gather_fields()
         cnt = 0
-        print(f"Available features in table '{self.target_table}'")
-        for i in self.features:
+        print(f"Available fields in table '{self.target_table}'")
+        for i in self.fields:
             if (cnt % print_span) == 0:
                 print("")
             print(i,end =", ")
             cnt +=  1
 
-    def is_queued(self):
+    def is_queued(self,message=True):
         '''
         Helper method to determine if the data table is queued.
         '''
         if self.tables is None:
             self.gather_tables()
         if self.target_table is None:
-            self.queue_table(self.tables[0])
-            print(f'''
-                  No table queued.
-                  Queuing the first table in the table list: {self.tables[0]}
-                  ''')
+            self.table(self.tables[0])
+            if message:
+                print(f"""No table queued. Queuing the first table in the table list: '{self.tables[0]}'""",end="\n\n")
 
     def expand_variable_range(self,var):
         '''
@@ -91,7 +91,7 @@ class tidysqlite:
         '''
         var_range = var.split(":")
         add_vars = []; on = False
-        for feature in self.features:
+        for feature in self.fields:
             if feature == var_range[0]:
                 on = True
                 add_vars.append(feature)
@@ -104,9 +104,12 @@ class tidysqlite:
         return add_vars
 
     def valid_variables(self,vars):
-        '''[Aux] Only return variables that are in the features set.
-        Ensure that there are no invalid queried features.'''
-        return [v for v in vars if v in self.features]
+        '''[Aux] Only return variables that are in the fields set.
+        Ensure that there are no invalid queried fields.'''
+        valid = [v for v in vars if v in self.fields]
+        if len(valid)==0:
+            return "*"
+        return valid
 
     def parse_query(self,query):
         '''
@@ -124,24 +127,87 @@ class tidysqlite:
         return self.valid_variables(vars)
 
     def select(self,query):
-        '''Select method to access specific features for sql query'''
-        if self.features is None:
-            self.gather_features()
-        self.selected_features = ", ".join(self.parse_query(query))
-
-    def clear_selected(self):
-        '''Clear selected features'''
-        self.selected_features = "*"
+        '''Select method to access specific fields for sql query'''
+        self.is_queued()
+        if self.fields is None:
+            self.gather_fields()
+        self.selected_fields = ", ".join(self.parse_query(query))
 
     def filter(self,query):
         '''
         Filter method to drop specific feature operations.
         '''
-        self.filter_conditions = "where " + query
+        self.filter_statement = "where " + query
+
+    # Clear fields for analysis
+    def clear_selected(self):
+        '''Clear selected fields'''
+        self.selected_fields = "*"
 
     def clear_filter(self):
-        '''Clear filtered features'''
-        self.filter_conditions = None
+        '''Clear filtered fields'''
+        self.filter_statement = ""
+
+    def clear_arrange(self):
+        '''Clear filtered fields'''
+        self.arrange_statement = ""
+
+    def clear(self):
+        '''
+        Clear all table settings
+        '''
+        self.target_table = None
+        self.fields = None
+        self.selected_fields = "*"
+        self.filter_statement = ""
+        self.arrange_statement = ""
+        self.prior_query = None
+
+    def arrange(self,query):
+        '''
+        Arrange data by some variable(s) in desc/ascending order.
+
+        Example:
+            db.arrange("desc(var1),var2")
+        '''
+        def clean(var):
+            if "desc(" in var:
+                var = var.replace("desc(","").replace(")","").strip()
+                var += " desc"
+            else:
+                var += " asc"
+            return var
+
+        entries = [clean(var.strip()) for var in query.split(',')]
+        self.arrange_statement = "order by " + ", ".join(entries)
+
+    def rename(self,query):
+        '''
+        Rename a field.
+        '''
+        def arrange_statement(entry):
+            '''[AUX] Generate a rearranged statement.'''
+            entry = [e.strip() for e in entry.split("=")]
+            return (entry[1],entry[1] + " as " + entry[0])
+
+        # Locate which fields set to alter.
+        if self.selected_fields == "*":
+            self.is_queued()
+            self.gather_fields()
+            avail_fields = self.fields
+        else:
+            avail_fields = self.selected_fields.split(", ")
+
+        # Store alterations in dictionary
+        entries = {}
+        for e in query.split(","):
+            if "=" in e:
+                key,val = arrange_statement(e.strip())
+                entries.update({key:val})
+
+        # iterate through available fields and replace queried field names.
+        db.selected_fields = ", ".join([entries[f] if f in entries else f  for f in avail_fields])
+
 
     def summarize(self):
         '''
@@ -157,10 +223,11 @@ class tidysqlite:
         '''
         self.is_queued() # Ensure a table is queued .
         self.prior_query = pd.read_sql(f"""
-                                       SELECT {self.selected_features}
+                                       SELECT {self.selected_fields}
                                        FROM '{self.target_table}'
-                                       {self.filter_conditions}
-                                       """,
+                                       {self.filter_statement}
+                                       {self.arrange_statement}
+                                       """.strip(),
                                        self.conn)
         return self.prior_query
 
@@ -170,11 +237,12 @@ class tidysqlite:
         '''
         self.is_queued() # Ensure a table is queued .
         self.prior_query = pd.read_sql(f"""
-                                       SELECT {self.selected_features}
+                                       SELECT {self.selected_fields}
                                        FROM '{self.target_table}'
-                                       {self.filter_conditions}
+                                       {self.filter_statement}
+                                       {self.arrange_statement}
                                        LIMIT {n}
-                                       """,
+                                       """.strip(),
                                        self.conn)
         return self.prior_query
 
@@ -185,26 +253,47 @@ class tidysqlite:
         self.prior_query = pd.read_sql(query,self.conn)
         return self.prior_query
 
+    # method attributes
+    def __str__(self):
+        self.gather_tables()
+        msg = \
+        f"""Connection Summary
+        Database: {self.db_loc}
+        No. Available Tables: {len(self.tables)}
+
+        Current Query State:
+
+            SELECT
+                {self.selected_fields}
+            FROM '{self.target_table}'
+            {self.filter_statement}
+            {self.arrange_statement}
+        """.strip()
+        return msg
+
 # %% Test
 
-
-# db = tidysqlite(conn=sqlite3.connect(os.path.expanduser("~/Dropbox/Dataverse/conflict_database.sqlite")))
+# db = tidysqlite(db_file="~/Dropbox/Dataverse/conflict_database.sqlite")
 # # db.list_tables()
-# db.queue_table("gtd-1970-2018")
-# # db.list_features()
+# db.table("gtd-1970-2018")
+# # db.list_fields()
 # db.select("country_txt,eventid:iday,addnotes")
-# db.filter("imonth == 7 and iday==2")
-# db.head(n=10)
-#
-#
-# # %%
-#
+# db.rename("country = country_txt, year = iyear")
+# # db.filter("imonth == 7 and iday==2 and iyear == 2018")
+# # db.arrange("country_txt")
+# # db.clear()
+# db.head()
+# print(db)
+
+
+# %%
+
 # con = sqlite3.connect(os.path.expanduser("~/Dropbox/Dataverse/conflict_database.sqlite"))
 # pd.read_sql("""SELECT
 #             year,
 #             conflict_name,
-#             deaths_a
+#             deaths_a as new
 #             FROM ucdp_ged_v17_1
-#             where year == 2010 and deaths_a == 2
+#             where year > 2010 and deaths_a > 2
 #             LIMIT 5
 #             """,con)
