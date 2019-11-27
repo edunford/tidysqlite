@@ -23,17 +23,20 @@ class tidysqlite:
         self.fields = None
         self.selected_fields = "*"
         self.filter_statement = ""
+        self.groupby_statement = ""
         self.arrange_statement = ""
+        self.distinct_statement = ""
         self.prior_query = None
 
     def connect(self,db_file=None):
         self.db_loc = db_file
         self.conn = conn=sqlite3.connect(os.path.expanduser(self.db_loc))
         self.clear()
+        self.gather_tables()
 
     def is_connected(self):
         if self.conn is None:
-            raise ValueError("No database connection located.")
+            raise ValueError("No database connection established.")
 
     def gather_tables(self):
         '''
@@ -44,14 +47,6 @@ class tidysqlite:
             cursor = self.conn.cursor()
             tables = cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
             self.tables = [i[0] for i in tables]
-
-    def list_tables(self):
-        '''
-        List all available tables.
-        '''
-        self.gather_tables()
-        for i in self.tables:
-            print(i)
 
     def table(self,table_name=""):
         '''
@@ -163,6 +158,10 @@ class tidysqlite:
         '''Clear filtered fields'''
         self.arrange_statement = ""
 
+    def clear_groupby(self):
+        '''Clear filtered fields'''
+        self.groupby_statement = ""
+
     def clear(self):
         '''
         Clear all table settings
@@ -172,6 +171,7 @@ class tidysqlite:
         self.selected_fields = "*"
         self.filter_statement = ""
         self.arrange_statement = ""
+        self.distinct_statement = ""
         self.prior_query = None
 
     def arrange(self,query):
@@ -202,8 +202,8 @@ class tidysqlite:
             return (entry[1],entry[1] + " as " + entry[0])
 
         # Locate which fields set to alter.
+        self.is_queued()
         if self.selected_fields == "*":
-            self.is_queued()
             self.gather_fields()
             avail_fields = self.fields
         else:
@@ -219,23 +219,117 @@ class tidysqlite:
         # iterate through available fields and replace queried field names.
         db.selected_fields = ", ".join([entries[f] if f in entries else f  for f in avail_fields])
 
-
-    def summarize(self):
+    def distinct(self):
         '''
-        Summarize method for quick aggregation of variables.
-
-        Requires both a group_by and summarize methodology.
+        Reduce to only distinct entries from all selected variables.
         '''
-        pass
+        self.distinct_statement = "distinct"
 
+    # Summarization/aggregation methods
+    def group_by(self,query):
+        '''
+        Select variable(s) to group gy
+        '''
+        self.is_queued()
+        self.grouped_vars = [v.strip() for v in query.split(",")]
+        self.groupby_statement = "group by " + ", ".join(self.grouped_vars)
+
+    def is_grouped(self):
+        if len(self.grouped_vars) > 0:
+            return True
+        return False
+
+    def mean(self,query=""):
+        '''
+        Calculate the mean value of the queried variables by the grouped by variables
+        '''
+        if self.is_grouped():
+            if query == "":
+                vars = self.grouped_vars
+                front = ""
+            else:
+                vars = [v.strip() for v in query.split(",")]
+                front = ", ".join(self.grouped_vars) + ", "
+            self.selected_fields = front + ", ".join([f"avg({i}) as {i}_mean" for i in vars])
+
+    def min(self,query=""):
+        '''
+        Calculate the min value of queried variabe by the grouped by variables
+        '''
+        if self.is_grouped():
+            if query == "":
+                vars = self.grouped_vars
+                front = ""
+            else:
+                vars = [v.strip() for v in query.split(",")]
+                front = ", ".join(self.grouped_vars) + ", "
+            self.selected_fields = front + ", ".join([f"min({i}) as {i}_min" for i in vars])
+
+    def max(self,query=""):
+        '''
+        Calculate the max value of queried variabe by the grouped by variables
+        '''
+        if self.is_grouped():
+            if query == "":
+                vars = self.grouped_vars
+                front = ""
+            else:
+                vars = [v.strip() for v in query.split(",")]
+                front = ", ".join(self.grouped_vars) + ", "
+            self.selected_fields = front + ", ".join([f"max({i}) as {i}_max" for i in vars])
+
+    def range(self,query=""):
+        '''
+        Calculate the range (min/max) value of the grouped by variables.
+        '''
+        if self.is_grouped():
+            if query == "":
+                vars = self.grouped_vars
+                front = ""
+            else:
+                vars = [v.strip() for v in query.split(",")]
+                front = ", ".join(self.grouped_vars) + ", "
+            self.selected_fields = front + ", ".join([f"min({i}) as {i}_min, max({i}) as {i}_max" for i in vars])
+
+    def sum(self,query=""):
+        '''
+        Calculate the sum value of queried variabe by the grouped by variables
+        '''
+        if self.is_grouped():
+            if query == "":
+                vars = self.grouped_vars
+                front = ""
+            else:
+                vars = [v.strip() for v in query.split(",")]
+                front = ", ".join(self.grouped_vars) + ", "
+            self.selected_fields = front + ", ".join([f"sum({i}) as {i}_sum" for i in vars])
+
+    def count(self):
+        '''
+        Count up the number of entries by the grouped variables.
+        '''
+        if self.is_grouped():
+            self.selected_fields = ", ".join(self.grouped_vars) + ", count(*) as n"
+
+    def prop(self):
+        '''
+        Count up the number of entries by the grouped variables.
+        '''
+        if self.is_grouped():
+            self.selected_fields = ", ".join(self.grouped_vars) + f", 1.0 * count(*)/(select count(*) FROM '{self.target_table}') as prop"
+
+
+    # Render data
     def collect(self):
         '''
         Execute constructed query on all available data.
         '''
         self.is_queued() # Ensure a table is queued .
         self.prior_query = pd.read_sql(f"""
-                                       SELECT {self.selected_fields}
+                                       SELECT {self.distinct_statement}
+                                       {self.selected_fields}
                                        FROM '{self.target_table}'
+                                       {self.groupby_statement}
                                        {self.filter_statement}
                                        {self.arrange_statement}
                                        """.strip(),
@@ -248,9 +342,11 @@ class tidysqlite:
         '''
         self.is_queued() # Ensure a table is queued .
         self.prior_query = pd.read_sql(f"""
-                                       SELECT {self.selected_fields}
+                                       SELECT {self.distinct_statement}
+                                       {self.selected_fields}
                                        FROM '{self.target_table}'
                                        {self.filter_statement}
+                                       {self.groupby_statement}
                                        {self.arrange_statement}
                                        LIMIT {n}
                                        """.strip(),
@@ -286,10 +382,11 @@ class tidysqlite:
 
         Current Query State:
 
-            SELECT
+            SELECT {self.distinct_statement}
                 {self.selected_fields}
             FROM '{self.target_table}'
             {self.filter_statement}
+            {self.groupby_statement}
             {self.arrange_statement}
         """.strip()
         return msg

@@ -2,30 +2,44 @@
 
 db = tidysqlite()
 db.connect(db_file="~/Dropbox/Dataverse/conflict_database.sqlite")
+db.table("gtd-1970-2018")
 
+# %%
 
-db.table("ucdp_ged_v17_1")
-db.list_fields()
-# db.select("country_txt,eventid:iday,addnotes")
+db.group_by("country_txt,iyear")
+# db.range("event_date")
+db.prop()
+db.head(10)
+
+# %%
+print(db)
+
+# %%
+# db.list_fields()
+# db.select("iyear")
 # db.rename("country = country_txt, year = iyear")
 # # db.filter("imonth == 7 and iday==2 and iyear == 2018")
 # # db.arrange("country_txt")
 # # db.clear()
-db.head()
-print(db)
+# db.distinct()
+# db.head()
+
+
+# %%
+[f"max({i}) as {i}_max" for i in db.grouped_vars]
+
+
+
 
 
 # %%
 
 # con = sqlite3.connect(os.path.expanduser("~/Dropbox/Dataverse/conflict_database.sqlite"))
-d = pd.read_sql("""SELECT
-            max(cast((JulianDay(date_end) - JulianDay(date_start)) as Integer)) as diff_bt_start_end,
-            count(*) as n_days
+pd.read_sql("""SELECT
+            year,
+            1.0 * count(*)/(select count(*) FROM ucdp_ged_v17_1) as prop
             FROM ucdp_ged_v17_1
-            group by cast((JulianDay(date_end) - JulianDay(date_start)) as Integer)
+            where year > 2000
+            group by year
+            order by year
             """,con)
-
-
-d['prop'] = (d.n_days/d.n_days.sum()).round(3)
-d['prop_cumsum'] = d.prop.cumsum().round(3)
-d.to_csv("/Users/edunford/Desktop/ged_episode_census.csv",index=False)
