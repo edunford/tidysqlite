@@ -4,7 +4,7 @@ setup(
   packages = ['tidysqlite'],
   version = '0.0.2',
   license='MIT',
-  description = 'A tidy data method for manipulating a sqlite repository in python',
+  description = 'A tidy data method for easy manipulation of a sqlite repository in Python.',
   author = 'Eric Dunford',
   author_email = 'ethomasdunford@gmail.com',
   url = 'https://github.com/edunford/tidysqlite',
@@ -12,6 +12,7 @@ setup(
   keywords = ['sql', 'tidy', 'data','wrangling','sqlite3','pandas'],
   install_requires=[
           'pandas',
+          'tabulate'
       ],
   classifiers=[  # Optional
     # How mature is this project? Common values are
