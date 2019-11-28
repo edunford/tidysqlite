@@ -124,8 +124,7 @@ class tidysqlite:
         '''
         [Aux] Parse string provided selection as query list of queried varibles.
         '''
-        vars = query.split(",") # split via comma separated values
-        vars = [v.strip() for v in vars] # remove white space
+        vars = [v.strip() for v in query.split(",")] # remove white space
         flagged_ranges = [i for i in range(len(vars)) if ":" in vars[i]]
         if len(flagged_ranges) > 0:
             ext = 0
