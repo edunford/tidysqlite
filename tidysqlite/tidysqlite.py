@@ -31,6 +31,7 @@ class tidysqlite:
     def connect(self,db_file=None):
         self.db_loc = db_file
         self.conn = conn=sqlite3.connect(os.path.expanduser(self.db_loc))
+        self.tables = None
         self.clear()
         self.gather_tables()
 
@@ -48,14 +49,16 @@ class tidysqlite:
             tables = cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
             self.tables = [i[0] for i in tables]
 
-    def table(self,table_name=""):
+    def select_table(self,table_name=""):
         '''
         Target a specific table for query.
         '''
-        if self.tables is  None:
+        if self.tables is None:
             self.gather_tables()
-        if table_name in self.tables:
+        elif table_name in self.tables:
             self.target_table = table_name
+        elif table_name == "":
+            print(f"No table specified.")
         else:
             print(f"{table_name} not in available tables.")
 
@@ -316,7 +319,7 @@ class tidysqlite:
         Count up the number of entries by the grouped variables.
         '''
         if self.is_grouped():
-            self.selected_fields = ", ".join(self.grouped_vars) + f", 1.0 * count(*)/(select count(*) FROM '{self.target_table}') as prop"
+            self.selected_fields = ", ".join(self.grouped_vars) + f", count(*) as n, 1.0 * count(*)/(select count(*) FROM '{self.target_table}') as prop"
 
 
     # Render data
@@ -360,17 +363,29 @@ class tidysqlite:
         self.prior_query = pd.read_sql(query,self.conn)
         return self.prior_query
 
-    def copy_to(self):
+    def create_table(self,data,table_name,append=False):
         '''
-        Copy a data frame to the SQLite DB
+        Copy a data frame to the SQLite DB.
         '''
-        pass
+        rule = "replace"
+        if append:
+            rule = "append"
+        data.to_sql(table_name, self.conn, if_exists=rule, index = False)
 
-    def delete_table(self):
+    def create_database(self,path=""):
+        '''
+        Create a new SQLlite DB
+        '''
+        sqlite3.connect(path)
+
+    def delete_table(self,table_name=""):
         '''
         Delete a table from the connected SQLite DB
         '''
-        pass
+        out = input(f""" Do you really want to delete {table_name}? Y: yes N: No""")
+        if out == "Y" or out.lower() == "yes":
+            cursor = self.conn.cursor().execute(f"DROP TABLE {table_name};")
+            db.tables = [t for t in db.tables if t != table_name]
 
     # method attributes
     def __str__(self):
