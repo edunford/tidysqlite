@@ -2,7 +2,7 @@
 Method for easy manipulation of a SQLite database using sqlite3 and pandas.
 
 Motivation:
-    Current methods to call in and explore a SQLite database are cumbersome, and unintuitive. For example, trying to list all the available tables in a SQLite database is not as straightforward as it could be. The module aims to generate a handy wrapper for most main query function using R's dplyr syntax. In essence, tidysqlite aims to function like dbplyr in python.
+    Current methods to call in and explore a SQLite database are cumbersome, and unintuitive. For example, trying to list all the available tables in a SQLite database is not as straightforward as it could be. The module aims to generate a handy wrapper for most main query function using R's dplyr syntax. In essence, tidysqlite aims to function like dbplyr in Python.
 '''
 
 import pandas as pd
@@ -14,9 +14,12 @@ class tidyDB:
     '''
     Method for easy manipulation of a SQLite database using sqlite3.
     '''
-    def __init__(self):
-        self.db_loc = ''
-        self.conn = None
+    def __init__(self,db_file=""):
+        self.db_loc = db_file
+        if self.db_loc != "":
+            self.conn = conn=sqlite3.connect(os.path.expanduser(self.db_loc))
+        else:
+            self.conn = None
         self.tables = None
         self.target_table = None
         self.fields = None
@@ -28,7 +31,7 @@ class tidyDB:
         self.distinct_statement = ""
         self.prior_query = None
 
-    def connect(self,db_file=None):
+    def connect(self,db_file=""):
         self.db_loc = db_file
         self.conn = conn=sqlite3.connect(os.path.expanduser(self.db_loc))
         self.tables = None
