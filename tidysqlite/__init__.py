@@ -1,4 +1,4 @@
-from tidysqlite import tidyDB
+from tidysqlite.tidysqlite import tidyDB
 
 __all__ = [
     'tidyDB.connect',
