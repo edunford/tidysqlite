@@ -1,4 +1,5 @@
 from tidysqlite.version import __version__
+from tidysqlite.citation import __citation__
 from tidysqlite.tidysqlite import tidysqlite
 
 __all__ = [
@@ -25,4 +26,5 @@ __all__ = [
     'tidysqlite.create_table',
     'tidysqlite.list_fields',
     'tidysqlite.select_table',
+    'tidysqlite.citation.__citation__'
 ]
