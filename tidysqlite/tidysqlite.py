@@ -2,11 +2,9 @@
 Method for easy manipulation of a SQLite database using sqlite3 and pandas.
 
 Motivation:
-    Current methods to call in and explore a SQLite database are cumbersome, and unintuitive.
-    For example, trying to list all the available tables in a SQLite database is not straightforward.
-    The module aims to generate a handy wrapper for most main query function using R's dplyr
-    syntax. In essence, tidysqlite aims to function like dbplyr.
+    Current methods to call in and explore a SQLite database are cumbersome, and unintuitive. For example, trying to list all the available tables in a SQLite database is not as straightforward as it could be. The module aims to generate a handy wrapper for most main query function using R's dplyr syntax. In essence, tidysqlite aims to function like dbplyr in python.
 '''
+
 import pandas as pd
 import sqlite3
 import os
