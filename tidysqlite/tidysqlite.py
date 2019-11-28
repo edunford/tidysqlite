@@ -8,8 +8,9 @@ Motivation:
 import pandas as pd
 import sqlite3
 import os
+from tabulate import tabulate
 
-class tidysqlite:
+class tidyDB:
     '''
     Method for easy manipulation of a SQLite database using sqlite3.
     '''
@@ -19,6 +20,7 @@ class tidysqlite:
         self.tables = None
         self.target_table = None
         self.fields = None
+        self.pipe_status = False
         self.selected_fields = "*"
         self.filter_statement = ""
         self.groupby_statement = ""
@@ -30,6 +32,9 @@ class tidysqlite:
         self.db_loc = db_file
         self.conn = conn=sqlite3.connect(os.path.expanduser(self.db_loc))
         self.tables = None
+        self.target_table = None
+        self.fields = None
+        self.prior_query = None
         self.clear()
         self.gather_tables()
 
@@ -59,6 +64,8 @@ class tidysqlite:
             print(f"No table specified.")
         else:
             print(f"{table_name} not in available tables.")
+        if self.pipe_status:
+            return self
 
     def gather_fields(self):
         '''
@@ -138,41 +145,29 @@ class tidysqlite:
         if self.fields is None:
             self.gather_fields()
         self.selected_fields = ", ".join(self.parse_query(query))
+        if self.pipe_status:
+            return self
+
+    def pipe_on(self):
+        '''
+        Determine if fluid programming should be allowed. That is, the passing of the object instantiation. Allow for a more seemless manipulation of commands
+        '''
+        self.pipe_status = True
+        self.clear()
+
+    def pipe_off(self):
+        '''
+        Determine if fluid programming should be turned off (Default is off).
+        '''
+        self.pipe_status = False
 
     def filter(self,query):
         '''
         Filter method to drop specific feature operations.
         '''
         self.filter_statement = "where " + query
-
-    # Clear fields for analysis
-    def clear_selected(self):
-        '''Clear selected fields'''
-        self.selected_fields = "*"
-
-    def clear_filter(self):
-        '''Clear filtered fields'''
-        self.filter_statement = ""
-
-    def clear_arrange(self):
-        '''Clear filtered fields'''
-        self.arrange_statement = ""
-
-    def clear_groupby(self):
-        '''Clear filtered fields'''
-        self.groupby_statement = ""
-
-    def clear(self):
-        '''
-        Clear all table settings
-        '''
-        self.target_table = None
-        self.fields = None
-        self.selected_fields = "*"
-        self.filter_statement = ""
-        self.arrange_statement = ""
-        self.distinct_statement = ""
-        self.prior_query = None
+        if self.pipe_status:
+            return self
 
     def arrange(self,query):
         '''
@@ -191,6 +186,8 @@ class tidysqlite:
 
         entries = [clean(var.strip()) for var in query.split(',')]
         self.arrange_statement = "order by " + ", ".join(entries)
+        if self.pipe_status:
+            return self
 
     def rename(self,query):
         '''
@@ -218,12 +215,16 @@ class tidysqlite:
 
         # iterate through available fields and replace queried field names.
         db.selected_fields = ", ".join([entries[f] if f in entries else f  for f in avail_fields])
+        if self.pipe_status:
+            return self
 
     def distinct(self):
         '''
         Reduce to only distinct entries from all selected variables.
         '''
         self.distinct_statement = "distinct"
+        if self.pipe_status:
+            return self
 
     # Summarization/aggregation methods
     def group_by(self,query):
@@ -233,6 +234,8 @@ class tidysqlite:
         self.is_queued()
         self.grouped_vars = [v.strip() for v in query.split(",")]
         self.groupby_statement = "group by " + ", ".join(self.grouped_vars)
+        if self.pipe_status:
+            return self
 
     def is_grouped(self):
         if len(self.grouped_vars) > 0:
@@ -251,6 +254,8 @@ class tidysqlite:
                 vars = [v.strip() for v in query.split(",")]
                 front = ", ".join(self.grouped_vars) + ", "
             self.selected_fields = front + ", ".join([f"avg({i}) as {i}_mean" for i in vars])
+        if self.pipe_status:
+            return self
 
     def min(self,query=""):
         '''
@@ -264,6 +269,8 @@ class tidysqlite:
                 vars = [v.strip() for v in query.split(",")]
                 front = ", ".join(self.grouped_vars) + ", "
             self.selected_fields = front + ", ".join([f"min({i}) as {i}_min" for i in vars])
+        if self.pipe_status:
+            return self
 
     def max(self,query=""):
         '''
@@ -277,6 +284,8 @@ class tidysqlite:
                 vars = [v.strip() for v in query.split(",")]
                 front = ", ".join(self.grouped_vars) + ", "
             self.selected_fields = front + ", ".join([f"max({i}) as {i}_max" for i in vars])
+        if self.pipe_status:
+            return self
 
     def range(self,query=""):
         '''
@@ -290,6 +299,8 @@ class tidysqlite:
                 vars = [v.strip() for v in query.split(",")]
                 front = ", ".join(self.grouped_vars) + ", "
             self.selected_fields = front + ", ".join([f"min({i}) as {i}_min, max({i}) as {i}_max" for i in vars])
+        if self.pipe_status:
+            return self
 
     def sum(self,query=""):
         '''
@@ -303,6 +314,8 @@ class tidysqlite:
                 vars = [v.strip() for v in query.split(",")]
                 front = ", ".join(self.grouped_vars) + ", "
             self.selected_fields = front + ", ".join([f"sum({i}) as {i}_sum" for i in vars])
+        if self.pipe_status:
+            return self
 
     def count(self):
         '''
@@ -310,6 +323,8 @@ class tidysqlite:
         '''
         if self.is_grouped():
             self.selected_fields = ", ".join(self.grouped_vars) + ", count(*) as n"
+        if self.pipe_status:
+            return self
 
     def prop(self):
         '''
@@ -317,14 +332,53 @@ class tidysqlite:
         '''
         if self.is_grouped():
             self.selected_fields = ", ".join(self.grouped_vars) + f", count(*) as n, 1.0 * count(*)/(select count(*) FROM '{self.target_table}') as prop"
+        if self.pipe_status:
+            return self
 
+    # Clear fields for analysis
+    def unselect(self):
+        '''Clear selected fields'''
+        self.selected_fields = "*"
+        if self.pipe_status:
+            return self
+
+    def unfilter(self):
+        '''Clear filtered fields'''
+        self.filter_statement = ""
+        if self.pipe_status:
+            return self
+
+    def unarrange(self):
+        '''Clear filtered fields'''
+        self.arrange_statement = ""
+        if self.pipe_status:
+            return self
+
+    def ungroup(self):
+        '''Clear filtered fields'''
+        self.groupby_statement = ""
+        if self.pipe_status:
+            return self
+
+    def clear(self):
+        '''
+        Clear all table settings
+        '''
+        # self.target_table = None
+        # self.fields = None
+        # self.prior_query = None
+        self.selected_fields = "*"
+        self.filter_statement = ""
+        self.arrange_statement = ""
+        self.distinct_statement = ""
+        self.groupby_statement = ""
 
     # Render data
     def collect(self):
         '''
         Execute constructed query on all available data.
         '''
-        self.is_queued() # Ensure a table is queued .
+        self.is_queued() # Ensure a table is queued.
         self.prior_query = pd.read_sql(f"""
                                        SELECT {self.distinct_statement}
                                        {self.selected_fields}
@@ -334,6 +388,8 @@ class tidysqlite:
                                        {self.arrange_statement}
                                        """.strip(),
                                        self.conn)
+        if self.pipe_status:
+            self.clear()
         return self.prior_query
 
     def head(self,n=5):
@@ -351,6 +407,8 @@ class tidysqlite:
                                        LIMIT {n}
                                        """.strip(),
                                        self.conn)
+        if self.pipe_status:
+            self.clear()
         return self.prior_query
 
     def custom_query(self,query=""):
@@ -374,6 +432,7 @@ class tidysqlite:
         Create a new SQLlite DB
         '''
         sqlite3.connect(path)
+        self.connect(path)
 
     def delete_table(self,table_name=""):
         '''
@@ -401,4 +460,34 @@ class tidysqlite:
             {self.groupby_statement}
             {self.arrange_statement}
         """.strip()
+        return msg
+
+    def __repr__(self):
+        self.gather_tables()
+        tmp = self.head(n=10)
+        self.prior_query = None # don't save
+
+        # Isolate the different data types for each field
+        cols = tmp.columns.values.tolist()
+        dtypes = [f"{d.str}" for d in tmp.dtypes.values.tolist()]
+        new_cols = [val + "\n(" + dtypes[i] + ")" for i, val in enumerate(cols)]
+
+        # Generate print for all left over fields.
+        if len(new_cols[5:]) > 0:
+            cnt = 0; store = []
+            out = f"\nwith {len(new_cols[5:])} additional variables:\n"
+            for i in [c.replace("\n"," ") for c in new_cols[5:]]:
+                if cnt == 3:
+                    out += ", ".join(store) + "\n"
+                    cnt = 0; store = []
+                else:
+                    store.append(i)
+                    cnt += 1
+        else:
+            out = ""
+
+        # generate table
+        msg = tabulate(tmp.iloc[:,:5],headers=new_cols[:5],
+                       tablefmt='plain',showindex=False,
+                       missingval=".",stralign="center") + out
         return msg
