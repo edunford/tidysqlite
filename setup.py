@@ -2,14 +2,14 @@ from distutils.core import setup
 setup(
   name = 'tidysqlite',
   packages = ['tidysqlite'],
-  version = '0.0.1',
+  version = '0.0.2',
   license='MIT',
   description = 'A tidy data method for manipulating a sqlite repository in python',
   author = 'Eric Dunford',
   author_email = 'ethomasdunford@gmail.com',
   url = 'https://github.com/edunford/tidysqlite',
-  download_url = 'https://github.com/edunford/tidysqlite/archive/0.0.1.tar.gz',
-  keywords = ['sql', 'tidy', 'data','wrangling'],
+  download_url = 'https://github.com/edunford/tidysqlite/archive/0.0.2.tar.gz',
+  keywords = ['sql', 'tidy', 'data','wrangling','sqlite3','pandas'],
   install_requires=[
           'pandas',
       ],
@@ -21,7 +21,7 @@ setup(
     'Development Status :: 3 - Alpha',
 
     # Indicate who your project is intended for
-    'Intended Audience :: Data Scienct :: Social Science',
+    'Intended Audience :: Data Science :: Social Science',
 
     # Pick your license as you wish
     'License :: OSI Approved :: MIT License',
