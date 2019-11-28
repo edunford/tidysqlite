@@ -8,7 +8,7 @@ setup(
   author = 'Eric Dunford',
   author_email = 'ethomasdunford@gmail.com',
   url = 'https://github.com/edunford/tidysqlite',
-  download_url = 'https://github.com/edunford/tidysqlite/archive/v0.0.3.tar.gz',
+  download_url = 'https://github.com/edunford/tidysqlite/archive/v.0.0.3.tar.gz',
   keywords = ['sql', 'tidy', 'data','wrangling','sqlite3','pandas'],
   install_requires=[
           'pandas',
