@@ -1,12 +1,12 @@
 # tidysqlite
 
-A tidy data method for easily manipulating a sqlite database in Python.
+A tidy data method for easy manipulation of a sqlite repository in Python.
 
 ## Motivation
 
-As a data researcher, it makes sense to store data locally in a SQLite data base. Housing data in a central repository (i.e. your own "dataverse") for a project or personal use increases efficiency, consistency, and transparency. However, Python (and [`pandas`](https://pandas.pydata.org/) in particular) has no streamlined way of interfacing with a SQLite database. One usually has to recall how to connect and draft a query, which can disrupt one's workflow.
+ Housing data in a central repository &mdash; for either a large project or personal use &mdash; increases efficiency, consistency, and transparency. SQLite offers a light weight and easy way to create this "dataverse". However, when building and interacting with SQLite databases in Python (and [`pandas`](https://pandas.pydata.org/) in particular), one usually has to recall how to connect and draft a query.
 
-`tidysqlite` is a response to that deficiency. The module borrows its logic from the much beloved [`dplyr`](https://dplyr.tidyverse.org/) naming conventions and [`dbplyr`](https://dbplyr.tidyverse.org/) implementation strategy. Users build up and execute a query through a series of easily implemented (and reconizable) commands. The data can then be returned as a [`pandas`](https://pandas.pydata.org/) data frame, offering the standard [`pandas`](https://pandas.pydata.org/) toolkit to manipulate the data further.
+ `tidysqlite` is a method designed to make interacting with SQLite more intuitive and simple in order to better streamline any data storage or exploration tasks. The module borrows its logic from the much beloved [`dplyr`](https://dplyr.tidyverse.org/) naming conventions and [`dbplyr`](https://dbplyr.tidyverse.org/) implementation strategy. Users build up and execute a query through a series of easily implemented (and reconizable) commands. The data can then be returned as a [`pandas`](https://pandas.pydata.org/) data frame, offering the standard [`pandas`](https://pandas.pydata.org/) toolkit to manipulate the data further.
 
 ## Installation
 
