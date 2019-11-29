@@ -15,11 +15,8 @@ class tidyDB:
     Method for easy manipulation of a SQLite database using sqlite3.
     '''
     def __init__(self,db_file=""):
-        self.db_loc = db_file
-        if self.db_loc != "":
-            self.conn = conn=sqlite3.connect(os.path.expanduser(self.db_loc))
-        else:
-            self.conn = None
+        self.db_loc = ""
+        self.conn = None
         self.tables = None
         self.target_table = None
         self.fields = None
@@ -30,24 +27,71 @@ class tidyDB:
         self.arrange_statement = ""
         self.distinct_statement = ""
         self.prior_query = None
+        self.connect(db_file=db_file)
 
     def connect(self,db_file=""):
-        self.db_loc = db_file
-        self.conn = conn=sqlite3.connect(os.path.expanduser(self.db_loc))
-        self.tables = None
-        self.target_table = None
-        self.fields = None
-        self.prior_query = None
-        self.clear()
-        self.gather_tables()
+        """Connect to an existing database.
+
+        Parameters
+        ----------
+        db_file : str
+            File path to SQLite database object.
+
+        Returns
+        -------
+        None
+            Establishes a connection in the instantiated object.
+
+        Raises
+        ------
+        FileExistsError
+            When no connection file exists.
+
+        Examples
+        -------
+        from tidysqlite import tidyDB
+        db = tidyDB()
+        db.connect("~/my_database.sqlite")
+        """
+        db_file_complete = os.path.expanduser(db_file)
+        if os.path.exists(db_file_complete):
+            self.db_loc = db_file_complete
+            self.conn = sqlite3.connect(db_file_complete)
+            self.tables = None
+            self.target_table = None
+            self.fields = None
+            self.prior_query = None
+            self.clear()
+            self.gather_tables()
+        else:
+            raise FileExistsError(f"The file path {db_file_complete} does not exist. Please specify a new file path or create a new database with .create_database().")
 
     def is_connected(self):
+        """Check if a connection to a SQLite database has been established.
+        Serves as an internal check to ensure a connection is established before performing any query operations
+
+        Returns
+        -------
+        None
+            if database connection has been established.
+
+        Raises
+        ------
+        ValueError
+            When no connection file exists.
+
+        Examples
+        -------
+        from tidysqlite import tidyDB
+        db = tidyDB()
+        db.is_connected()
+        """
         if self.conn is None:
             raise ValueError("No database connection established.")
 
     def gather_tables(self):
         '''
-        Gather all available tables in the SQL database.
+        [Aux] Gather all available tables in the SQL database.
         '''
         self.is_connected()
         if self.tables is None:
@@ -56,31 +100,94 @@ class tidyDB:
             self.tables = [i[0] for i in tables]
 
     def select_table(self,table_name=""):
-        '''
-        Target a specific table for query.
-        '''
+        """Load a specific data from the connect SQLite database.
+
+        Parameters
+        ----------
+        table_name : str
+            Name of existing table in connected SQLite database.
+
+        Returns
+        -------
+        type
+            Description of returned object.
+
+        Raises
+        ------
+        ValueError
+            When no table is specified or the table specified does not exist.
+
+        Examples
+        -------
+        from tidysqlite import tidyDB
+        import pandas as pd
+
+        # Create an example database
+        db = tidyDB()
+        db.create_database("example_db.sqlite")
+        dat = pd.DataFrame(dict(foo=[1,2,3,4,5,6],
+                                bar=['z','z','z','x','x','y'],
+                                x = [.2,.4,.1,.8,.9,1],
+                                y = [0,0,1,0,1,1]))
+        db.create_table(dat,table_name="tableA")
+
+        # Connect to the data base and table.
+        db.connect("example_db.sqlite")
+        db.tables
+        db.select_table("tableA")
+        """
         if self.tables is None:
             self.gather_tables()
         elif table_name in self.tables:
             self.target_table = table_name
         elif table_name == "":
-            print(f"No table specified.")
+            raise ValueError(f"No table specified.")
         else:
-            print(f"{table_name} not in available tables.")
+            raise ValueError(f"{table_name} not in available tables.")
         if self.pipe_status:
             return self
 
     def gather_fields(self):
         '''
-        Gather all available fields
+        [Aux.] Gather all available fields
         '''
         self.is_connected()
         self.fields = pd.read_sql(f"SELECT * FROM '{self.target_table}' LIMIT 1",self.conn).columns.values.tolist()
 
     def list_fields(self,print_span = 7):
-        '''
-        List all fields within a specific table
-        '''
+        """List all fields within the selected table.
+
+        Parameters
+        ----------
+        print_span : int
+            int specifying the number of fields that should be printed on each line.
+
+        Returns
+        -------
+        str
+            List of all available fields in selected table. If no table is selected, the the fields from the first table in the database is selected.
+
+
+        Examples
+        -------
+        from tidysqlite import tidyDB
+        import pandas as pd
+
+        # Create an example database
+        db = tidyDB()
+        db.create_database("example_db.sqlite")
+        dat = pd.DataFrame(dict(foo=[1,2,3,4,5,6],
+                                bar=['z','z','z','x','x','y'],
+                                x = [.2,.4,.1,.8,.9,1],
+                                y = [0,0,1,0,1,1]))
+        db.create_table(dat,table_name="tableA")
+
+        # Connect to the data base and table.
+        db.connect("example_db.sqlite")
+        db.tables
+        db.select_table("tableA")
+        db.list_fields()
+        """
         self.gather_fields()
         cnt = 0
         print(f"Available fields in table '{self.target_table}'")
@@ -92,13 +199,13 @@ class tidyDB:
 
     def is_queued(self,message=True):
         '''
-        Helper method to determine if the data table is queued.
+        [AUX] Helper method to determine if the data table is queued.
         '''
         self.is_connected()
         if self.tables is None:
             self.gather_tables()
         if self.target_table is None:
-            self.table(self.tables[0])
+            self.select_table(self.tables[0])
             if message:
                 print(f"""No table queued. Queuing the first table in the table list: '{self.tables[0]}'""",end="\n\n")
 
@@ -143,6 +250,21 @@ class tidyDB:
         return self.valid_variables(vars)
 
     def select(self,query):
+        """.select() method reduces data to only the specified fields.
+
+        In practices, it constructs the SELECT portion of the SQLit query.
+
+        Parameters
+        ----------
+        query : str
+
+
+        Returns
+        -------
+        type
+            Description of returned object.
+
+        """
         '''Select method to access specific fields for sql query'''
         self.is_queued()
         if self.fields is None:
@@ -421,21 +543,26 @@ class tidyDB:
         self.prior_query = pd.read_sql(query,self.conn)
         return self.prior_query
 
-    def create_table(self,data,table_name,append=False):
+    def create_table(self,data=None,table_name="",append=False,overwrite=False):
         '''
         Copy a data frame to the SQLite DB.
         '''
-        rule = "replace"
-        if append:
-            rule = "append"
+        self.gather_tables()
+        rule = "fail"
+        if table_name in self.tables:
+            if overwrite:
+                rule = "replace"
+        else:
+            if append:
+                rule = "append"
         data.to_sql(table_name, self.conn, if_exists=rule, index = False)
 
     def create_database(self,path=""):
         '''
         Create a new SQLlite DB
         '''
-        sqlite3.connect(path)
-        self.connect(path)
+        sqlite3.connect(path) # first treat new database
+        self.connect(path) # then connect to it
 
     def delete_table(self,table_name=""):
         '''
