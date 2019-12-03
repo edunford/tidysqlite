@@ -30,7 +30,7 @@ class tidyDB:
         self.connect(db_file=db_file)
 
     def connect(self,db_file=""):
-        """Connect to an existing database.
+        """Establish a connection to an existing local SQLite database.
 
         Parameters
         ----------
@@ -275,14 +275,16 @@ class tidyDB:
 
     def pipe_on(self):
         '''
-        Determine if fluid programming should be allowed. That is, the passing of the object instantiation. Allow for a more seemless manipulation of commands
+        Determine if fluid programming should be allowed. That is, the passing of the object instantiation. Allow for a more seemless manipulation of commands.
+
+        Default = T
         '''
         self.pipe_status = True
         self.clear()
 
     def pipe_off(self):
         '''
-        Determine if fluid programming should be turned off (Default is off).
+        Determine if fluid programming should be turned off.
         '''
         self.pipe_status = False
 
@@ -339,7 +341,7 @@ class tidyDB:
                 entries.update({key:val})
 
         # iterate through available fields and replace queried field names.
-        db.selected_fields = ", ".join([entries[f] if f in entries else f  for f in avail_fields])
+        self.selected_fields = ", ".join([entries[f] if f in entries else f  for f in avail_fields])
         if self.pipe_status:
             return self
 
@@ -571,7 +573,7 @@ class tidyDB:
         out = input(f""" Do you really want to delete {table_name}? Y: yes N: No""")
         if out == "Y" or out.lower() == "yes":
             cursor = self.conn.cursor().execute(f"DROP TABLE {table_name};")
-            db.tables = [t for t in db.tables if t != table_name]
+            self.tables = [t for t in self.tables if t != table_name]
 
     # method attributes
     def __str__(self):
@@ -603,18 +605,23 @@ class tidyDB:
         new_cols = [val + "\n(" + dtypes[i] + ")" for i, val in enumerate(cols)]
 
         # Generate print for all left over fields.
+        cnt = 0; store = []; ongoing = True
         if len(new_cols[5:]) > 0:
-            cnt = 0; store = []
-            out = f"\nwith {len(new_cols[5:])} additional variables:\n"
+            out = f"\nwith {len(new_cols[5:])-1} additional variables:\n"
             for i in [c.replace("\n"," ") for c in new_cols[5:]]:
                 if cnt == 3:
                     out += ", ".join(store) + "\n"
                     cnt = 0; store = []
+                    ongoing = False
                 else:
                     store.append(i)
                     cnt += 1
+                    ongoing = True
         else:
             out = ""
+
+        if ongoing:
+            out += ", ".join(store) + "\n"
 
         # generate table
         msg = tabulate(tmp.iloc[:,:5],headers=new_cols[:5],
