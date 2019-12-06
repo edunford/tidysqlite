@@ -20,7 +20,7 @@ class tidyDB:
         self.tables = None
         self.target_table = None
         self.fields = None
-        self.pipe_status = False
+        self.pipe_status = True
         self.selected_fields = "*"
         self.filter_statement = ""
         self.groupby_statement = ""
@@ -99,7 +99,7 @@ class tidyDB:
             tables = cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
             self.tables = [i[0] for i in tables]
 
-    def select_table(self,table_name=""):
+    def tbl(self,table_name=""):
         """Load a specific data from the connect SQLite database.
 
         Parameters
@@ -134,7 +134,7 @@ class tidyDB:
         # Connect to the data base and table.
         db.connect("example_db.sqlite")
         db.tables
-        db.select_table("tableA")
+        db.tbl("tableA")
         """
         if self.tables is None:
             self.gather_tables()
@@ -185,7 +185,7 @@ class tidyDB:
         # Connect to the data base and table.
         db.connect("example_db.sqlite")
         db.tables
-        db.select_table("tableA")
+        db.tbl("tableA")
         db.list_fields()
         """
         self.gather_fields()
@@ -205,7 +205,7 @@ class tidyDB:
         if self.tables is None:
             self.gather_tables()
         if self.target_table is None:
-            self.select_table(self.tables[0])
+            self.tbl(self.tables[0])
             if message:
                 print(f"""No table queued. Queuing the first table in the table list: '{self.tables[0]}'""",end="\n\n")
 
@@ -517,6 +517,7 @@ class tidyDB:
                                        self.conn)
         if self.pipe_status:
             self.clear()
+            self.target_table = None
         return self.prior_query
 
     def head(self,n=5):
@@ -536,6 +537,7 @@ class tidyDB:
                                        self.conn)
         if self.pipe_status:
             self.clear()
+            self.target_table = None
         return self.prior_query
 
     def custom_query(self,query=""):
@@ -596,35 +598,41 @@ class tidyDB:
 
     def __repr__(self):
         self.gather_tables()
-        tmp = self.head(n=10)
-        self.prior_query = None # don't save
-
-        # Isolate the different data types for each field
-        cols = tmp.columns.values.tolist()
-        dtypes = [f"{d.str}" for d in tmp.dtypes.values.tolist()]
-        new_cols = [val + "\n(" + dtypes[i] + ")" for i, val in enumerate(cols)]
-
-        # Generate print for all left over fields.
-        cnt = 0; store = []; ongoing = True
-        if len(new_cols[5:]) > 0:
-            out = f"\nwith {len(new_cols[5:])-1} additional variables:\n"
-            for i in [c.replace("\n"," ") for c in new_cols[5:]]:
-                if cnt == 3:
-                    out += ", ".join(store) + "\n"
-                    cnt = 0; store = []
-                    ongoing = False
-                else:
-                    store.append(i)
-                    cnt += 1
-                    ongoing = True
+        if self.target_table is None:
+            msg = f"Database: {self.db_loc}\n" + "Tables:\n\t" + "\n\t".join([i for i in self.tables])
         else:
-            out = ""
+            tmp = self.head(n=10)
+            self.prior_query = None # don't save
 
-        if ongoing:
-            out += ", ".join(store) + "\n"
+            # Isolate the different data types for each field
+            cols = tmp.columns.values.tolist()
+            dtypes = [f"{d.str}" for d in tmp.dtypes.values.tolist()]
+            new_cols = [val + "\n(" + dtypes[i] + ")" for i, val in enumerate(cols)]
 
-        # generate table
-        msg = tabulate(tmp.iloc[:,:5],headers=new_cols[:5],
-                       tablefmt='plain',showindex=False,
-                       missingval=".",stralign="center") + out
+            # Generate print for all left over fields.
+            cnt = 0; store = []; ongoing = True
+            if len(new_cols[5:]) > 0:
+                out = f"\nwith {len(new_cols[5:])} additional variables:\n"
+                for i in [c.replace("\n"," ") for c in new_cols[5:]]:
+                    if cnt == 3:
+                        out += ", ".join(store) + "\n"
+                        cnt = 0; store = []
+                        ongoing = False
+                    else:
+                        store.append(i)
+                        cnt += 1
+                        ongoing = True
+            else:
+                out = ""
+
+            if ongoing:
+                out += ", ".join(store) + "\n"
+
+            # Clear target table
+            self.target_table = None
+
+            # generate table
+            msg = tabulate(tmp.iloc[:,:5],headers=new_cols[:5],
+                           tablefmt='plain',showindex=False,
+                           missingval=".",stralign="center") + out
         return msg
