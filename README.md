@@ -13,13 +13,9 @@ A tidy data method for easy manipulation of a sqlite repository in Python.
 Download the developer version from `Github`
 
 ```
-pip install --upgrade https://github.com/edunford/tidysqlite/tarball/master
+pip install --upgrade  git+git://github.com/edunford/tidysqlite.git
 ```
 
-**Note**: _The package is not yet live on PiPy._
-```
-# pip install tidysqlite
-```
 
 ## Usage
 
